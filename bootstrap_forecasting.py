@@ -5,7 +5,6 @@ import numpy as np
 from sklearn.preprocessing import StandardScaler
 from sklearn.svm import SVC
 from sklearn.metrics import confusion_matrix, make_scorer
-from gsulabpackage.util import metrics as util
 
 
 # Define a function to calculate TSS and HSS2 metrics
@@ -43,8 +42,6 @@ def trainModel(training, params, corrBool):
     trainingdata.loc[(trainingdata["LABEL"] != 1), "LABEL"] = 0
     trainingdata.dropna(inplace=True)
 
-    # Create a scorer
-    score = make_scorer(util.get_tss)
 
     # Assign AR group
     trainingdata['AR'] = 1
