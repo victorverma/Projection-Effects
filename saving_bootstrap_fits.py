@@ -4,19 +4,8 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy import stats
-from scipy.stats import pearsonr, spearmanr
-import seaborn as sns
-from scipy.optimize import least_squares, curve_fit
-from sklearn.metrics import mean_squared_error, mean_absolute_error
-from scipy import interpolate
-from sklearn.feature_selection import SelectKBest, f_classif
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.preprocessing import StandardScaler
-import dill
-from sklearn.svm import SVC
-from sklearn.metrics import confusion_matrix
+from scipy.optimize import least_squares
 import pickle
-import sys
 
 # List of parameters to analyze
 params = ["EPSX"]

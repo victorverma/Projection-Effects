@@ -3,8 +3,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
-import pickle
-from matplotlib.ticker import (MultipleLocator, AutoMinorLocator)
+from matplotlib.ticker import AutoMinorLocator
 
 # Function to calculate TSS and HSS metrics and group data by bins
 def gridGraph(file, bins):
