@@ -4,7 +4,7 @@ import os
 import numpy as np
 from sklearn.preprocessing import StandardScaler
 from sklearn.svm import SVC
-from sklearn.metrics import confusion_matrix, make_scorer
+from sklearn.metrics import confusion_matrix
 
 
 # Define a function to calculate TSS and HSS2 metrics
