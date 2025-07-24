@@ -16,13 +16,6 @@ def trainModel(training, params, corrBool):
     trainingdata.loc[(trainingdata["LABEL"] != 1), "LABEL"] = 0
     trainingdata.dropna(inplace=True)
 
-
-    # Assign AR group
-    trainingdata['AR'] = 1
-    for i in range(0, len(trainingdata)):
-        trainingdata['AR'].iloc[i] = trainingdata['FILE'].iloc[i][
-                                     trainingdata['FILE'].iloc[i].find("_ar"):trainingdata['FILE'].iloc[i].find("_s")]
-
     # Scale the data
     scaler = StandardScaler()
     scaler.fit(trainingdata[params])
