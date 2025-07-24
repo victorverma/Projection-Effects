@@ -1,7 +1,5 @@
 # Import necessary libraries
 import pandas as pd
-import os
-import numpy as np
 from sklearn.preprocessing import StandardScaler
 from sklearn.svm import SVC
 from sklearn.metrics import confusion_matrix
