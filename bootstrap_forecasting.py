@@ -6,30 +6,6 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.svm import SVC
 from sklearn.metrics import confusion_matrix
 
-
-# Define a function to calculate TSS and HSS2 metrics
-def get_tss_and_hss2(y_true, y_pred, labels=None):
-    if labels is None:
-        labels = [0, 1]
-
-    # Calculate confusion matrix components
-    tn, fp, fn, tp = confusion_matrix(y_true, y_pred, labels=labels).ravel()
-
-    # Calculate true positive rate and false positive rate
-    tp_rate = tp / float(tp + fn) if tp > 0 else 0
-    fp_rate = fp / float(fp + tn) if fp > 0 else 0
-
-    # Calculate TSS
-    tss = tp_rate - fp_rate
-
-    # Calculate HSS2
-    numer = 2 * ((tp * tn) - (fn * fp))
-    denom = ((tp + fn) * (fn + tn)) + ((tp + fp) * (fp + tn))
-    hss2 = numer / float(denom)
-
-    return tss + hss2
-
-
 # Define a function to train the model
 def trainModel(training, params, corrBool):
     # Load training data
