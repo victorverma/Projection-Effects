@@ -104,33 +104,6 @@ def forecast(training, testing, params, clf, scaler):
 
     return [tn, fp, fn, tp], training, testing, testingdata
 
-
-# Define a function to get features based on importance
-def getFeatures(partition, numFeatures, corrected):
-    data = pd.read_csv("Partition" + partition + "Improvements.csv")
-    if corrected:
-        top = data[['Specs', 'CORR_Specs', 'IMP']].head(numFeatures)
-        features = []
-        for index, row in top.iterrows():
-            if row['IMP'] >= 0:
-                features.append(row['CORR_Specs'])
-            else:
-                features.append(row['Specs'])
-    else:
-        features = data['Specs'].head(numFeatures).to_numpy().tolist()
-    return features
-
-
-# Define a function to get final features
-def getFeaturesFinal(corrected):
-    data = pd.read_csv("PartitionAVGALLImprovements.csv")
-    if corrected:
-        features = data['CORR_Specs'].to_numpy().tolist()
-    else:
-        features = data['Specs'].to_numpy().tolist()
-    return features
-
-
 # Define a function to get features with only improvements
 def getFeaturesOnlyImp(partition, numFeatures, corrected):
     data = pd.read_csv("Partition" + partition + "Improvements.csv")
