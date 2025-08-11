@@ -35,7 +35,7 @@ if [ $download_failed -ne 0 ] || [ ! -s "$ZIP_NAME" ]; then
   echo "Download failed."
   echo "Please download the ZIP manually from:"
   echo "  https://dataverse.harvard.edu/dataset.xhtml?persistentId=${PERSISTENT_ID}&version=$VERSION"
-  echo "Save it as data/swan_sf.zip and then unzip it into data/swan_sf/."
+  echo "Save it as data/${ZIP_NAME} and then unzip it into data/${DEST_DIR}/."
   [ -f "$ZIP_NAME" ] && rm -f "$ZIP_NAME"
   [ -d "$DEST_DIR" ] && rm -rf "$DEST_DIR"
   exit 2
