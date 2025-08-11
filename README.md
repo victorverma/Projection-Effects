@@ -12,3 +12,13 @@ top-level directory:
 ```
 ./make_env.sh
 ```
+
+The code uses the SWAN-SF dataset, which is described in [this paper](https://doi.org/10.1038/s41597-020-0548-x).
+Running the command below from `data/` will download the data into a
+subdirectory of `data/`:
+```
+./download_data.sh
+```
+The code that was used to generate the dataset can be found [here](https://bitbucket.org/gsudmlab/workspace/projects/FP),
+in several repositories it seems. In particular, code for computing `HC_ANGLE`
+can be found in [this script](https://bitbucket.org/gsudmlab/armvtsprep/src/main/mvts/add_TMFI_column.py).
