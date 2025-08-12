@@ -1,6 +1,7 @@
-This project is a fork of [griffin-goodwin/Projection-Effects](https://github.com/griffin-goodwin/Projection-Effects).
-The owner, Griffin Goodwin, gave me permission to reuse and modify his code in
-an email on 2025-07-22.
+This project is a fork of [griffin-goodwin/Projection-Effects](https://github.com/griffin-goodwin/Projection-Effects),
+which contains the code for [this paper](https://dx.doi.org/10.3847/1538-4357/adb4f6).
+The owner of that repository, Griffin Goodwin, gave me permission to reuse and
+modify his code in an email on 2025-07-22.
 
 The original code is in the `master` branch, which is protected as it isn't
 meant to be altered. In order to run the code, I needed to modify it; my
@@ -22,3 +23,14 @@ subdirectory of `data/`:
 The code that was used to generate the dataset can be found [here](https://bitbucket.org/gsudmlab/workspace/projects/FP),
 in several repositories it seems. In particular, code for computing `HC_ANGLE`
 can be found in [this script](https://bitbucket.org/gsudmlab/armvtsprep/src/main/mvts/add_TMFI_column.py).
+
+The SWAN-SF dataset is divided across many CSVs, each of which contains a
+12-hour multivariate time series that preceded either a flare or a quiet period.
+In the experiments for the paper by Goodwin et al., each row of the training and
+test sets contained summary statistics computed from a single CSV. The
+summarized CSVs are those in the directories matching `data/swan_sf/partition[1-5]/(FL|NF)`.
+Run the command below from `data/` to make `data/summary_df.parquet`, which
+stores all of the training and test data.
+```
+conda run -p ../env/ --live-stream python make_summary_df.py
+```
