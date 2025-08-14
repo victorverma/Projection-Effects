@@ -10,7 +10,6 @@ from pathlib import Path
 
 ROOT_DIR = "swan_sf"
 CSV_PATH_PATTERN = "partition[1-5]/*/*.csv"
-OUT_PATH = "summary_df.parquet"
 PARAMS = [
     "ABSNJZH", "EPSX", "EPSY", "EPSZ", "MEANALP", "MEANGAM", "MEANGBH",
     "MEANGBT", "MEANGBZ", "MEANJZD", "MEANJZH", "MEANPOT", "MEANSHR", "R_VALUE",
@@ -25,6 +24,13 @@ SUMMARY_STATS = [
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Make a Pandas data frame containing a one-row summary of each SWAN-SF CSV."
+    )
+    parser.add_argument(
+        "--df_type",
+        type=str,
+        choices=["full", "summary"],
+        default="full",
+        help="Type of data frame to produce, 'full' (no summarization) or 'summary' (default: 'full')."
     )
     parser.add_argument(
         "--max_workers",
@@ -57,6 +63,24 @@ def get_partition_and_type(csv_path: Path) -> tuple[int, str]:
     partition = int(partition[-1])
     type = csv_path.parent.name # either FL or NF
     return partition, type
+
+def process_csv(csv_path: Path, params: list[str] = PARAMS) -> pd.DataFrame:
+    """
+    Put the data in the given CSV on the given parameters in a data frame.
+    """
+    partition, type = get_partition_and_type(csv_path)
+
+    usecols = ["Timestamp", "HC_ANGLE"] + params
+    csv_df = pd.read_csv(csv_path, sep="\t", usecols=usecols)
+    csv_df[params] = csv_df[params].interpolate(
+        method="linear", limit_direction="both"
+    )
+
+    csv_df.insert(0, "partition", partition)
+    csv_df.insert(1, "type", type)
+    csv_df.insert(2, "file", csv_path.name)
+
+    return csv_df
 
 def summarize_csv(csv_path: Path, params: list[str] = PARAMS) -> pd.DataFrame:
     """
@@ -103,13 +127,20 @@ def summarize_csv(csv_path: Path, params: list[str] = PARAMS) -> pd.DataFrame:
     return pd.DataFrame([out])
 
 def make_summary_df(
-        max_workers: int, chunksize: int, batch_size: int, progress_every: int
+        df_type: str,
+        max_workers: int,
+        chunksize: int,
+        batch_size: int,
+        progress_every: int
     ) -> None:
     """
     Compute summary statistics for all CSVs and save results to a Parquet file.
     """
-    if os.path.exists(OUT_PATH):
-        os.remove(OUT_PATH)
+    out_path = f"{df_type}_df.parquet"
+    if os.path.exists(out_path):
+        os.remove(out_path)
+
+    fun = process_csv if df_type == "full" else summarize_csv
 
     writer = None
     rows = []
@@ -123,13 +154,13 @@ def make_summary_df(
         rows = []
         table = pa.Table.from_pandas(batch_df, preserve_index=False)
         if writer is None:
-            writer = pq.ParquetWriter(OUT_PATH, table.schema)
+            writer = pq.ParquetWriter(out_path, table.schema)
         writer.write_table(table)
 
     num_files = sum(1 for _ in Path(ROOT_DIR).glob(CSV_PATH_PATTERN))
     files_iter = Path(ROOT_DIR).glob(CSV_PATH_PATTERN)
     with ProcessPoolExecutor(max_workers) as ex:
-        for row in ex.map(summarize_csv, files_iter, chunksize=chunksize):
+        for row in ex.map(fun, files_iter, chunksize=chunksize):
             rows.append(row)
             num_summarized += 1
             if len(rows) >= batch_size:
@@ -150,5 +181,9 @@ def make_summary_df(
 if __name__ == "__main__":
     args = parse_args()
     make_summary_df(
-        args.max_workers, args.chunksize, args.batch_size, args.progress_every
+        args.df_type,
+        args.max_workers,
+        args.chunksize,
+        args.batch_size,
+        args.progress_every
     )
