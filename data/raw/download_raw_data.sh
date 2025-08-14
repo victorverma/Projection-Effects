@@ -1,7 +1,7 @@
 #!/bin/sh
 
-# Downloads version 1.2 of the SWAN-SF dataset into data/swan_sf/. Run this in
-# data/.
+# Downloads version 1.2 of the SWAN-SF dataset into data/raw/swan_sf/. Run this
+# from data/raw/.
 #
 # See this link for information on the dataset:
 # https://dataverse.harvard.edu/dataset.xhtml?persistentId=doi:10.7910/DVN/EBCFKM&version=1.2
@@ -35,7 +35,7 @@ if [ $download_failed -ne 0 ] || [ ! -s "$ZIP_NAME" ]; then
   echo "Download failed."
   echo "Please download the ZIP manually from:"
   echo "  https://dataverse.harvard.edu/dataset.xhtml?persistentId=${PERSISTENT_ID}&version=$VERSION"
-  echo "Save it as data/${ZIP_NAME} and then unzip it into data/${DEST_DIR}/."
+  echo "Save it as data/raw/${ZIP_NAME} and then unzip it into data/raw/${DEST_DIR}/."
   [ -f "$ZIP_NAME" ] && rm -f "$ZIP_NAME"
   [ -d "$DEST_DIR" ] && rm -rf "$DEST_DIR"
   exit 2

@@ -15,10 +15,10 @@ top-level directory:
 ```
 
 The code uses the SWAN-SF dataset, which is described in [this paper](https://doi.org/10.1038/s41597-020-0548-x).
-Running the command below from `data/` will download the data into a
-subdirectory of `data/`:
+Running the command below from `data/raw/` will download the data into
+`data/raw/swan_sf/`:
 ```
-./download_data.sh
+./download_raw_data.sh
 ```
 The code that was used to generate the dataset can be found [here](https://bitbucket.org/gsudmlab/workspace/projects/FP),
 in several repositories it seems. In particular, code for computing `HC_ANGLE`
@@ -28,7 +28,7 @@ The SWAN-SF dataset is divided across many CSVs, each of which contains a
 12-hour multivariate time series that preceded either a flare or a quiet period.
 In the experiments for the paper by Goodwin et al., each row of the training and
 test sets contained summary statistics computed from a single CSV. The
-summarized CSVs are those in the directories matching `data/swan_sf/partition[1-5]/(FL|NF)`.
+summarized CSVs are those in the directories matching `data/raw/swan_sf/partition[1-5]/(FL|NF)`.
 Run the command below from `data/` to make `data/summary_df.parquet`, which
 stores all of the training and test data.
 ```
