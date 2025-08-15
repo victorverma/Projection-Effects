@@ -71,15 +71,15 @@ def get_partition_and_type(csv_path: Path) -> tuple[int, str]:
     type = csv_path.parent.name # either FL or NF
     return partition, type
 
-def process_csv(csv_path: Path, params: list[str] = PARAMS) -> pd.DataFrame:
+def process_csv(csv_path: Path) -> pd.DataFrame:
     """
     Put the data in the given CSV on the given parameters in a data frame.
     """
     partition, type = get_partition_and_type(csv_path)
 
-    usecols = ["Timestamp", "HC_ANGLE"] + params
+    usecols = ["Timestamp", "HC_ANGLE"] + PARAMS
     csv_df = pd.read_csv(csv_path, sep="\t", usecols=usecols)
-    csv_df[params] = csv_df[params].interpolate(
+    csv_df[PARAMS] = csv_df[PARAMS].interpolate(
         method="linear", limit_direction="both"
     )
 
@@ -89,19 +89,19 @@ def process_csv(csv_path: Path, params: list[str] = PARAMS) -> pd.DataFrame:
 
     return csv_df
 
-def summarize_csv(csv_path: Path, params: list[str] = PARAMS) -> pd.DataFrame:
+def summarize_csv(csv_path: Path) -> pd.DataFrame:
     """
     Construct a one-row data frame with summary statistics for the specified CSV
     and parameters.
     """
     partition, type = get_partition_and_type(csv_path)
 
-    csv_df = pd.read_csv(csv_path, sep="\t", usecols=params)
+    csv_df = pd.read_csv(csv_path, sep="\t", usecols=PARAMS)
     csv_df = csv_df.interpolate(method="linear", limit_direction="both")
 
     out = {"partition": partition, "type": type, "file": csv_path.name}
 
-    for col in params:
+    for col in PARAMS:
         col_vals = csv_df[col]
         num_non_nas = col_vals.notna().sum()
 
