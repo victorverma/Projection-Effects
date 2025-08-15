@@ -26,11 +26,13 @@ can be found in [this script](https://bitbucket.org/gsudmlab/armvtsprep/src/main
 
 The SWAN-SF dataset is divided across many CSVs, each of which contains a
 12-hour multivariate time series that preceded either a flare or a quiet period.
-In the experiments for the paper by Goodwin et al., each row of the training and
+In the experiments in the paper by Goodwin et al., each row of the training and
 test sets contained summary statistics computed from a single CSV. The
-summarized CSVs are those in the directories matching `data/raw/swan_sf/partition[1-5]/(FL|NF)`.
-Run the command below from `data/` to make `data/summary_df.parquet`, which
-stores all of the training and test data.
+CSVs that were used are in the directories matching `data/raw/swan_sf/partition[1-5]/(FL|NF)/`.
+Run the command below from `data/processed/` to make two data frames for each
+partition such that one contains the data in all the CSVs for the partition and
+the other contains all of the summary statistic data. The data frames are
+saved in files matching `data/processed/partition[1-5]/(full|summary)_df.parquet`.
 ```
-conda run -p ../env/ --live-stream python make_summary_df.py
+./make_dfs.sh
 ```
