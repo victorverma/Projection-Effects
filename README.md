@@ -29,10 +29,11 @@ The SWAN-SF dataset is divided across many CSVs, each of which contains a
 In the experiments in the paper by Goodwin et al., each row of the training and
 test sets contained summary statistics computed from a single CSV. The
 CSVs that were used are in the directories matching `data/raw/swan_sf/partition[1-5]/(FL|NF)/`.
-Run the command below from `data/processed/` to make two data frames for each
-partition such that one contains the data in all the CSVs for the partition and
-the other contains all of the summary statistic data. The data frames are
-saved in files matching `data/processed/partition[1-5]/(full|summary)_df.parquet`.
+Running the command below from `data/processed/` makes four data frames for each
+partition. One contains the data in all the CSVs for the partition and another
+contains all of the summary statistic data. The other two are similar, except
+they incorporate corrections computed using the polynomials given in the paper.
+The data frames are saved in files matching `data/processed/partition[1-5]/(full|summary)_df.parquet`.
 ```
 ./make_dfs.sh
 ```

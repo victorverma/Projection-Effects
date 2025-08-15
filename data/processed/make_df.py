@@ -2,14 +2,18 @@ import argparse
 import numpy as np
 import os
 import pandas as pd
+import pickle
 import pyarrow as pa
 import pyarrow.parquet as pq
 from concurrent.futures import ProcessPoolExecutor
 from datetime import datetime
+from functools import partial
+from numpy.polynomial.polynomial import polyval
 from pathlib import Path
 
 ROOT_DIR = "../raw/swan_sf/"
 CSV_PATH_PATTERN = "*/*.csv"
+POLY_COEFS_DIR = "../../dictionary_fits/"
 PARAMS = [
     "ABSNJZH", "EPSX", "EPSY", "EPSZ", "MEANALP", "MEANGAM", "MEANGBH",
     "MEANGBT", "MEANGBZ", "MEANJZD", "MEANJZH", "MEANPOT", "MEANSHR", "R_VALUE",
@@ -20,6 +24,12 @@ SUMMARY_STATS = [
     "mean", "median", "std", "var", "max", "min", "skew", "kurt", "last",
     "diff_mean", "diff_std"
 ]
+
+poly_coefs = pd.DataFrame(columns=PARAMS)
+for param in PARAMS:
+    with open(f"{POLY_COEFS_DIR}/saved_dictionary_{param}.pkl", "rb") as f:
+        # The constant term of 1 seems to be missing, so prepend 1
+        poly_coefs[param] = np.insert(pickle.load(f)["Mean Fit"], 0, 1)
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
@@ -38,6 +48,11 @@ def parse_args() -> argparse.Namespace:
         choices=["full", "summary"],
         default="full",
         help="Type of data frame to produce, 'full' (no summarization) or 'summary' (default: 'full')."
+    )
+    parser.add_argument(
+        "--correct_params",
+        action="store_true",
+        help="Whether to correct the parameters using the correction factor polynomials (default: False)."
     )
     parser.add_argument(
         "--max_workers",
@@ -71,17 +86,25 @@ def get_partition_and_type(csv_path: Path) -> tuple[int, str]:
     type = csv_path.parent.name # either FL or NF
     return partition, type
 
-def process_csv(csv_path: Path) -> pd.DataFrame:
+def correct_params(csv_df: pd.DataFrame) -> pd.DataFrame:
+    for param in PARAMS:
+        csv_df[param] /= polyval(csv_df["HC_ANGLE"], poly_coefs[param])
+    return csv_df
+
+def process_csv(csv_path: Path, *, correct_params_: bool) -> pd.DataFrame:
     """
     Put the data in the given CSV on the given parameters in a data frame.
     """
     partition, type = get_partition_and_type(csv_path)
 
-    usecols = ["Timestamp", "HC_ANGLE"] + PARAMS
-    csv_df = pd.read_csv(csv_path, sep="\t", usecols=usecols)
+    csv_df = pd.read_csv(
+        csv_path, sep="\t", usecols=["Timestamp", "HC_ANGLE"] + PARAMS
+    )
     csv_df[PARAMS] = csv_df[PARAMS].interpolate(
         method="linear", limit_direction="both"
     )
+    if correct_params_:
+        csv_df = correct_params(csv_df)
 
     csv_df.insert(0, "partition", partition)
     csv_df.insert(1, "type", type)
@@ -89,15 +112,17 @@ def process_csv(csv_path: Path) -> pd.DataFrame:
 
     return csv_df
 
-def summarize_csv(csv_path: Path) -> pd.DataFrame:
+def summarize_csv(csv_path: Path, *, correct_params_: bool) -> pd.DataFrame:
     """
     Construct a one-row data frame with summary statistics for the specified CSV
     and parameters.
     """
     partition, type = get_partition_and_type(csv_path)
 
-    csv_df = pd.read_csv(csv_path, sep="\t", usecols=PARAMS)
+    csv_df = pd.read_csv(csv_path, sep="\t", usecols=["HC_ANGLE"] + PARAMS)
     csv_df = csv_df.interpolate(method="linear", limit_direction="both")
+    if correct_params_:
+        csv_df = correct_params(csv_df)
 
     out = {"partition": partition, "type": type, "file": csv_path.name}
 
@@ -136,6 +161,7 @@ def summarize_csv(csv_path: Path) -> pd.DataFrame:
 def make_df(
         partition: int,
         df_type: str,
+        correct_params_: bool,
         max_workers: int,
         chunksize: int,
         batch_size: int,
@@ -144,15 +170,20 @@ def make_df(
     """
     Compute summary statistics for all CSVs and save results to a Parquet file.
     """
-    out_path = f"partition{partition}/{df_type}_df.parquet"
+    prefix = "corrected_" if correct_params_ else ""
+    out_path = f"partition{partition}/{prefix}{df_type}_df.parquet"
     if os.path.exists(out_path):
         os.remove(out_path)
 
+    # partial is used to create functions that are picklable and thus usable by
+    # the ProcessPoolExecutor instance. Fixing the value of correct_params_ in a
+    # partial call requires correct_params_ to be a keyword argument of
+    # process_csv and summarize_csv
     if df_type == "full":
-        fun = process_csv
+        fun = partial(process_csv, correct_params_=correct_params_)
         first_word = "Processed"
     else:
-        fun = summarize_csv
+        fun = partial(summarize_csv, correct_params_=correct_params_)
         first_word = "Summarized"
 
     writer = None
@@ -173,6 +204,7 @@ def make_df(
     partition_path = Path(ROOT_DIR) / f"partition{partition}"
     num_csvs = sum(1 for _ in partition_path.glob(CSV_PATH_PATTERN))
     files_iter = partition_path.glob(CSV_PATH_PATTERN)
+    correction_phrase = " with corrections" if correct_params_ else ""
     with ProcessPoolExecutor(max_workers) as ex:
         for row in ex.map(fun, files_iter, chunksize=chunksize):
             rows.append(row)
@@ -182,13 +214,16 @@ def make_df(
             if progress_every and num_finished % progress_every == 0:
                 ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 print(
-                    f"[{ts}] {first_word} {num_finished:,} out of {num_csvs:,} files...",
+                    f"[{ts}] {first_word}{correction_phrase} {num_finished:,} out of {num_csvs:,} files...",
                     flush=True
                 )
 
     flush_batch() # Final flush
     ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    print(f"[{ts}] {first_word} all {num_csvs:,} files.", flush=True)
+    print(
+        f"[{ts}] {first_word}{correction_phrase} all {num_csvs:,} files.",
+        flush=True
+    )
     if writer is not None:
         writer.close()
 
@@ -197,6 +232,7 @@ if __name__ == "__main__":
     make_df(
         args.partition,
         args.df_type,
+        args.correct_params,
         args.max_workers,
         args.chunksize,
         args.batch_size,
