@@ -20,9 +20,10 @@ PARAMS = [
     "SAVNCPP", "SHRGT45", "TOTBSQ", "TOTFX", "TOTFY", "TOTFZ", "TOTPOT",
     "TOTUSJH", "TOTUSJZ", "USFLUX"
 ]
-SUMMARY_STATS = [
-    "mean", "median", "std", "var", "max", "min", "skew", "kurt", "last",
-    "diff_mean", "diff_std"
+# See summary_stat_suffixes.ipynb for more information on these
+SUMMARY_STAT_SUFFIXES = [
+    "mean", "median", "stddev", "var", "max", "min", "skewness", "kurtosis",
+    "last_value", "gderivative_mean", "gderivative_stddev"
 ]
 
 poly_coefs = pd.DataFrame(columns=PARAMS)
@@ -131,30 +132,30 @@ def summarize_csv(csv_path: Path, *, correct_params_: bool) -> pd.DataFrame:
         num_non_nas = col_vals.notna().sum()
 
         if num_non_nas == 0:
-            for summary_stat in SUMMARY_STATS:
-                out[f"{col}_{summary_stat}"] = np.nan
+            for suffix in SUMMARY_STAT_SUFFIXES:
+                out[f"{col}_{suffix}"] = np.nan
             continue
 
         mean = col_vals.mean()
         median = col_vals.median()
-        std = col_vals.std() if num_non_nas > 1 else np.nan
+        stddev = col_vals.std() if num_non_nas > 1 else np.nan
         var = col_vals.var() if num_non_nas > 1 else np.nan
         max_ = col_vals.max()
         min_ = col_vals.min()
-        skew = col_vals.skew() if num_non_nas > 2 else np.nan
-        kurt = col_vals.kurtosis() if num_non_nas > 3 else np.nan
+        skewness = col_vals.skew() if num_non_nas > 2 else np.nan
+        kurtosis = col_vals.kurtosis() if num_non_nas > 3 else np.nan
 
-        last = col_vals.iloc[-1]
+        last_value = col_vals.iloc[-1]
         diffs = col_vals.diff().dropna()
-        diff_mean = diffs.mean() if len(diffs) else np.nan
-        diff_std = diffs.std() if len(diffs) else np.nan
+        gderivative_mean = diffs.mean() if len(diffs) else np.nan
+        gderivative_stddev = diffs.std() if len(diffs) else np.nan
 
-        stat_vals = [
-            mean, median, std, var, max_, min_, skew, kurt,
-            last, diff_mean, diff_std
+        summary_stat_vals = [
+            mean, median, stddev, var, max_, min_, skewness, kurtosis,
+            last_value, gderivative_mean, gderivative_stddev
         ]
-        for summary_stat, stat_val in zip(SUMMARY_STATS, stat_vals):
-            out[f"{col}_{summary_stat}"] = stat_val
+        for suffix, val in zip(SUMMARY_STAT_SUFFIXES, summary_stat_vals):
+            out[f"{col}_{suffix}"] = val
 
     return pd.DataFrame([out])
 
