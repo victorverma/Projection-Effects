@@ -5,6 +5,7 @@ import pandas as pd
 import pickle
 import pyarrow as pa
 import pyarrow.parquet as pq
+import re
 from concurrent.futures import ProcessPoolExecutor
 from datetime import datetime
 from functools import partial
@@ -20,7 +21,7 @@ PARAMS = [
     "SAVNCPP", "SHRGT45", "TOTBSQ", "TOTFX", "TOTFY", "TOTFZ", "TOTPOT",
     "TOTUSJH", "TOTUSJZ", "USFLUX"
 ]
-# See summary_stat_suffixes.ipynb for more information on these
+# See data/processed/summary_stat_suffixes.ipynb for more information on these
 SUMMARY_STAT_SUFFIXES = [
     "mean", "median", "stddev", "var", "max", "min", "skewness", "kurtosis",
     "last_value", "gderivative_mean", "gderivative_stddev"
@@ -81,11 +82,14 @@ def parse_args() -> argparse.Namespace:
     )
     return parser.parse_args()
 
-def get_partition_and_type(csv_path: Path) -> tuple[int, str]:
+# See data/processed/csv_name_patterns.ipynb for some work that this is based on
+def get_info_from_path(csv_path: Path) -> tuple[int, str, str, int]:
     partition = csv_path.parent.parent.name
     partition = int(partition[-1])
     type = csv_path.parent.name # either FL or NF
-    return partition, type
+    flare_class = "FQ" if csv_path.name[:2] == "FQ" else csv_path.name[0]
+    ar_num = int(re.search(r"ar([0-9]+)", csv_path.name).group(1))
+    return partition, type, flare_class, ar_num
 
 def correct_params(csv_df: pd.DataFrame) -> pd.DataFrame:
     for param in PARAMS:
@@ -96,7 +100,7 @@ def process_csv(csv_path: Path, *, correct_params_: bool) -> pd.DataFrame:
     """
     Put the data in the given CSV on the given parameters in a data frame.
     """
-    partition, type = get_partition_and_type(csv_path)
+    partition, type, flare_class, ar_num = get_info_from_path(csv_path)
 
     csv_df = pd.read_csv(
         csv_path, sep="\t", usecols=["Timestamp", "HC_ANGLE"] + PARAMS
@@ -109,7 +113,9 @@ def process_csv(csv_path: Path, *, correct_params_: bool) -> pd.DataFrame:
 
     csv_df.insert(0, "partition", partition)
     csv_df.insert(1, "type", type)
-    csv_df.insert(2, "file", csv_path.name)
+    csv_df.insert(2, "flare_class", flare_class)
+    csv_df.insert(3, "ar_num", ar_num)
+    csv_df.insert(4, "file", csv_path.name)
 
     return csv_df
 
@@ -118,14 +124,20 @@ def summarize_csv(csv_path: Path, *, correct_params_: bool) -> pd.DataFrame:
     Construct a one-row data frame with summary statistics for the specified CSV
     and parameters.
     """
-    partition, type = get_partition_and_type(csv_path)
+    partition, type, flare_class, ar_num = get_info_from_path(csv_path)
 
     csv_df = pd.read_csv(csv_path, sep="\t", usecols=["HC_ANGLE"] + PARAMS)
     csv_df = csv_df.interpolate(method="linear", limit_direction="both")
     if correct_params_:
         csv_df = correct_params(csv_df)
 
-    out = {"partition": partition, "type": type, "file": csv_path.name}
+    out = {
+        "partition": partition,
+        "type": type,
+        "flare_class": flare_class,
+        "ar_num": ar_num,
+        "file": csv_path.name
+    }
 
     for col in PARAMS:
         col_vals = csv_df[col]
