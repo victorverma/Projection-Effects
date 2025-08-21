@@ -21,11 +21,6 @@ PARAMS = [
     "SAVNCPP", "SHRGT45", "TOTBSQ", "TOTFX", "TOTFY", "TOTFZ", "TOTPOT",
     "TOTUSJH", "TOTUSJZ", "USFLUX"
 ]
-# See data/processed/summary_stat_suffixes.ipynb for more information on these
-SUMMARY_STAT_SUFFIXES = [
-    "mean", "median", "stddev", "var", "max", "min", "skewness", "kurtosis",
-    "last_value", "gderivative_mean", "gderivative_stddev"
-]
 
 poly_coefs = pd.DataFrame(columns=PARAMS)
 for param in PARAMS:
@@ -35,7 +30,7 @@ for param in PARAMS:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Make a Pandas data frame containing a one-row summary of each SWAN-SF CSV."
+        description="Make a data frame containing the data in all the CSVs in a SWAN-SF partition."
     )
     parser.add_argument(
         "--partition",
@@ -43,13 +38,6 @@ def parse_args() -> argparse.Namespace:
         choices=[1, 2, 3, 4, 5],
         required=True,
         help="Number of the partition to use (1-5)."
-    )
-    parser.add_argument(
-        "--df_type",
-        type=str,
-        choices=["full", "summary"],
-        default="full",
-        help="Type of data frame to produce, 'full' (no summarization) or 'summary' (default: 'full')."
     )
     parser.add_argument(
         "--correct_params",
@@ -72,7 +60,7 @@ def parse_args() -> argparse.Namespace:
         "--batch_size",
         type=int,
         default=1000,
-        help="Rows to buffer in memory before appending to the Parquet file (default: 1000)."
+        help="Rows to buffer in memory before appending to the output Parquet file (default: 1000)."
     )
     parser.add_argument(
         "--progress_every",
@@ -98,7 +86,7 @@ def correct_params(csv_df: pd.DataFrame) -> pd.DataFrame:
 
 def process_csv(csv_path: Path, *, correct_params_: bool) -> pd.DataFrame:
     """
-    Put the data in the given CSV on the given parameters in a data frame.
+    Put the data in the given CSV in a data frame. Optionally correct the data.
     """
     partition, type, flare_class, ar_num = get_info_from_path(csv_path)
 
@@ -119,61 +107,8 @@ def process_csv(csv_path: Path, *, correct_params_: bool) -> pd.DataFrame:
 
     return csv_df
 
-def summarize_csv(csv_path: Path, *, correct_params_: bool) -> pd.DataFrame:
-    """
-    Construct a one-row data frame with summary statistics for the specified CSV
-    and parameters.
-    """
-    partition, type, flare_class, ar_num = get_info_from_path(csv_path)
-
-    csv_df = pd.read_csv(csv_path, sep="\t", usecols=["HC_ANGLE"] + PARAMS)
-    csv_df = csv_df.interpolate(method="linear", limit_direction="both")
-    if correct_params_:
-        csv_df = correct_params(csv_df)
-
-    out = {
-        "partition": partition,
-        "type": type,
-        "flare_class": flare_class,
-        "ar_num": ar_num,
-        "file": csv_path.name
-    }
-
-    for col in PARAMS:
-        col_vals = csv_df[col]
-        num_non_nas = col_vals.notna().sum()
-
-        if num_non_nas == 0:
-            for suffix in SUMMARY_STAT_SUFFIXES:
-                out[f"{col}_{suffix}"] = np.nan
-            continue
-
-        mean = col_vals.mean()
-        median = col_vals.median()
-        stddev = col_vals.std() if num_non_nas > 1 else np.nan
-        var = col_vals.var() if num_non_nas > 1 else np.nan
-        max_ = col_vals.max()
-        min_ = col_vals.min()
-        skewness = col_vals.skew() if num_non_nas > 2 else np.nan
-        kurtosis = col_vals.kurtosis() if num_non_nas > 3 else np.nan
-
-        last_value = col_vals.iloc[-1]
-        diffs = col_vals.diff().dropna()
-        gderivative_mean = diffs.mean() if len(diffs) else np.nan
-        gderivative_stddev = diffs.std() if len(diffs) else np.nan
-
-        summary_stat_vals = [
-            mean, median, stddev, var, max_, min_, skewness, kurtosis,
-            last_value, gderivative_mean, gderivative_stddev
-        ]
-        for suffix, val in zip(SUMMARY_STAT_SUFFIXES, summary_stat_vals):
-            out[f"{col}_{suffix}"] = val
-
-    return pd.DataFrame([out])
-
-def make_df(
+def make_full_df(
         partition: int,
-        df_type: str,
         correct_params_: bool,
         max_workers: int,
         chunksize: int,
@@ -181,23 +116,19 @@ def make_df(
         progress_every: int
     ) -> None:
     """
-    Compute summary statistics for all CSVs and save results to a Parquet file.
+    Make a data frame containing the data in all the CSVs in a SWAN-SF partition.
     """
+    out_dir = Path(f"partition{partition}")
     prefix = "corrected_" if correct_params_ else ""
-    out_path = f"partition{partition}/{prefix}{df_type}_df.parquet"
+    out_path = out_dir / f"{prefix}full_df.parquet"
     if os.path.exists(out_path):
         os.remove(out_path)
 
     # partial is used to create functions that are picklable and thus usable by
     # the ProcessPoolExecutor instance. Fixing the value of correct_params_ in a
     # partial call requires correct_params_ to be a keyword argument of
-    # process_csv and summarize_csv
-    if df_type == "full":
-        fun = partial(process_csv, correct_params_=correct_params_)
-        first_word = "Processed"
-    else:
-        fun = partial(summarize_csv, correct_params_=correct_params_)
-        first_word = "Summarized"
+    # process_csv
+    process_csv_ = partial(process_csv, correct_params_=correct_params_)
 
     writer = None
     rows = []
@@ -219,7 +150,7 @@ def make_df(
     files_iter = partition_path.glob(CSV_PATH_PATTERN)
     correction_phrase = " with corrections" if correct_params_ else ""
     with ProcessPoolExecutor(max_workers) as ex:
-        for row in ex.map(fun, files_iter, chunksize=chunksize):
+        for row in ex.map(process_csv_, files_iter, chunksize=chunksize):
             rows.append(row)
             num_finished += 1
             if len(rows) >= batch_size:
@@ -227,14 +158,14 @@ def make_df(
             if progress_every and num_finished % progress_every == 0:
                 ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 print(
-                    f"[{ts}] {first_word}{correction_phrase} {num_finished:,} out of {num_csvs:,} files...",
+                    f"[{ts}] Processed{correction_phrase} {num_finished:,} out of {num_csvs:,} files...",
                     flush=True
                 )
 
     flush_batch() # Final flush
     ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     print(
-        f"[{ts}] {first_word}{correction_phrase} all {num_csvs:,} files.",
+        f"[{ts}] Processed{correction_phrase} all {num_csvs:,} files.",
         flush=True
     )
     if writer is not None:
@@ -242,9 +173,8 @@ def make_df(
 
 if __name__ == "__main__":
     args = parse_args()
-    make_df(
+    make_full_df(
         args.partition,
-        args.df_type,
         args.correct_params,
         args.max_workers,
         args.chunksize,
