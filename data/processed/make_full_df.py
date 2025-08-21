@@ -1,20 +1,15 @@
 import argparse
-import numpy as np
 import os
 import pandas as pd
-import pickle
 import pyarrow as pa
 import pyarrow.parquet as pq
 import re
 from concurrent.futures import ProcessPoolExecutor
 from datetime import datetime
-from functools import partial
-from numpy.polynomial.polynomial import polyval
 from pathlib import Path
 
 ROOT_DIR = "../raw/swan_sf/"
 CSV_PATH_PATTERN = "*/*.csv"
-POLY_COEFS_DIR = "../../dictionary_fits/"
 PARAMS = [
     "ABSNJZH", "EPSX", "EPSY", "EPSZ", "MEANALP", "MEANGAM", "MEANGBH",
     "MEANGBT", "MEANGBZ", "MEANJZD", "MEANJZH", "MEANPOT", "MEANSHR", "R_VALUE",
@@ -22,15 +17,9 @@ PARAMS = [
     "TOTUSJH", "TOTUSJZ", "USFLUX"
 ]
 
-poly_coefs = pd.DataFrame(columns=PARAMS)
-for param in PARAMS:
-    with open(f"{POLY_COEFS_DIR}/saved_dictionary_{param}.pkl", "rb") as f:
-        # The constant term of 1 seems to be missing, so prepend 1
-        poly_coefs[param] = np.insert(pickle.load(f)["Mean Fit"], 0, 1)
-
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Make a data frame containing the data in all the CSVs in a SWAN-SF partition."
+        description="Make a data frame containing the data from all the CSVs in a SWAN-SF partition."
     )
     parser.add_argument(
         "--partition",
@@ -38,11 +27,6 @@ def parse_args() -> argparse.Namespace:
         choices=[1, 2, 3, 4, 5],
         required=True,
         help="Number of the partition to use (1-5)."
-    )
-    parser.add_argument(
-        "--correct_params",
-        action="store_true",
-        help="Whether to correct the parameters using the correction factor polynomials (default: False)."
     )
     parser.add_argument(
         "--max_workers",
@@ -79,12 +63,7 @@ def get_info_from_path(csv_path: Path) -> tuple[int, str, str, int]:
     ar_num = int(re.search(r"ar([0-9]+)", csv_path.name).group(1))
     return partition, type, flare_class, ar_num
 
-def correct_params(csv_df: pd.DataFrame) -> pd.DataFrame:
-    for param in PARAMS:
-        csv_df[param] /= polyval(csv_df["HC_ANGLE"], poly_coefs[param])
-    return csv_df
-
-def process_csv(csv_path: Path, *, correct_params_: bool) -> pd.DataFrame:
+def process_csv(csv_path: Path) -> pd.DataFrame:
     """
     Put the data in the given CSV in a data frame. Optionally correct the data.
     """
@@ -96,8 +75,6 @@ def process_csv(csv_path: Path, *, correct_params_: bool) -> pd.DataFrame:
     csv_df[PARAMS] = csv_df[PARAMS].interpolate(
         method="linear", limit_direction="both"
     )
-    if correct_params_:
-        csv_df = correct_params(csv_df)
 
     csv_df.insert(0, "partition", partition)
     csv_df.insert(1, "type", type)
@@ -109,26 +86,18 @@ def process_csv(csv_path: Path, *, correct_params_: bool) -> pd.DataFrame:
 
 def make_full_df(
         partition: int,
-        correct_params_: bool,
         max_workers: int,
         chunksize: int,
         batch_size: int,
         progress_every: int
     ) -> None:
     """
-    Make a data frame containing the data in all the CSVs in a SWAN-SF partition.
+    Make a data frame containing the data from all the CSVs in a SWAN-SF partition.
     """
     out_dir = Path(f"partition{partition}")
-    prefix = "corrected_" if correct_params_ else ""
-    out_path = out_dir / f"{prefix}full_df.parquet"
+    out_path = out_dir / "full_df.parquet"
     if os.path.exists(out_path):
         os.remove(out_path)
-
-    # partial is used to create functions that are picklable and thus usable by
-    # the ProcessPoolExecutor instance. Fixing the value of correct_params_ in a
-    # partial call requires correct_params_ to be a keyword argument of
-    # process_csv
-    process_csv_ = partial(process_csv, correct_params_=correct_params_)
 
     writer = None
     rows = []
@@ -148,9 +117,8 @@ def make_full_df(
     partition_path = Path(ROOT_DIR) / f"partition{partition}"
     num_csvs = sum(1 for _ in partition_path.glob(CSV_PATH_PATTERN))
     files_iter = partition_path.glob(CSV_PATH_PATTERN)
-    correction_phrase = " with corrections" if correct_params_ else ""
     with ProcessPoolExecutor(max_workers) as ex:
-        for row in ex.map(process_csv_, files_iter, chunksize=chunksize):
+        for row in ex.map(process_csv, files_iter, chunksize=chunksize):
             rows.append(row)
             num_finished += 1
             if len(rows) >= batch_size:
@@ -158,16 +126,13 @@ def make_full_df(
             if progress_every and num_finished % progress_every == 0:
                 ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 print(
-                    f"[{ts}] Processed{correction_phrase} {num_finished:,} out of {num_csvs:,} files...",
+                    f"[{ts}] Processed {num_finished:,} out of {num_csvs:,} files...",
                     flush=True
                 )
 
     flush_batch() # Final flush
     ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    print(
-        f"[{ts}] Processed{correction_phrase} all {num_csvs:,} files.",
-        flush=True
-    )
+    print(f"[{ts}] Processed all {num_csvs:,} files.", flush=True)
     if writer is not None:
         writer.close()
 
@@ -175,7 +140,6 @@ if __name__ == "__main__":
     args = parse_args()
     make_full_df(
         args.partition,
-        args.correct_params,
         args.max_workers,
         args.chunksize,
         args.batch_size,
