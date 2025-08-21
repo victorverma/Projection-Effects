@@ -54,7 +54,7 @@ def parse_args() -> argparse.Namespace:
     )
     return parser.parse_args()
 
-# See data/processed/csv_name_patterns.ipynb for some work that this is based on
+# See csv_name_patterns.ipynb for some work that this is based on
 def get_info_from_path(csv_path: Path) -> tuple[int, str, str, int]:
     partition = csv_path.parent.parent.name
     partition = int(partition[-1])
@@ -65,7 +65,7 @@ def get_info_from_path(csv_path: Path) -> tuple[int, str, str, int]:
 
 def process_csv(csv_path: Path) -> pd.DataFrame:
     """
-    Put the data in the given CSV in a data frame. Optionally correct the data.
+    Put the data in the given CSV in a data frame.
     """
     partition, type, flare_class, ar_num = get_info_from_path(csv_path)
 

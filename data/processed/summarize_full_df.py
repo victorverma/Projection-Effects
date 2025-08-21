@@ -32,11 +32,8 @@ def summarize_df(partition: int, use_corrected_data: bool) -> None:
     Summarize a full data frame by computing summary statistics for each CSV row
     group.
 
-    See data/processed/summary_stat_suffixes.ipynb for more information on the
-    names of the columns of the output data frame
-
-    :param partition: Number of the partition the full data frame belongs to (1-5).
-    :param use_corrected_data: Whether to summarize a full data frame with corrected data.
+    See summary_stat_suffixes.ipynb for more information on the names of the
+    columns of the output data frame
     """
     partition_dir = Path(f"partition{partition}")
     file_name_prefix = "corrected_" if use_corrected_data else ""
