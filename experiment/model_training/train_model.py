@@ -2,6 +2,7 @@ import argparse
 import pandas as pd
 from joblib import dump
 from numpy.typing import ArrayLike
+from pathlib import Path
 from sklearn.metrics import confusion_matrix, make_scorer
 from sklearn.model_selection import StratifiedGroupKFold, GridSearchCV
 from sklearn.pipeline import Pipeline
@@ -37,14 +38,18 @@ def calc_tss(y_true: ArrayLike, y_pred: ArrayLike) -> float:
     return tp / (tp + fn) - fp / (fp + tn)
 
 def train_model(partition: int, use_corrected_data: bool, n_jobs: int) -> None:
+    parent_parent_dir = Path("..") / ".."
+    partition_str = f"partition{partition}"
     prefix = "corrected_" if use_corrected_data else ""
     train_summary_df = (
         pd.read_parquet(
-            f"../../data/processed/partition{partition}/{prefix}summary_df.parquet"
+            parent_parent_dir / "data" / "processed" / partition_str / f"{prefix}summary_df.parquet"
         )
         .sort_values(["type", "file"]) # Make the results fully reproducible
     )
-    improvements = pd.read_csv(f"../../Partition{partition}Improvements.csv")
+    improvements = pd.read_csv(
+        parent_parent_dir / f"Partition{partition}Improvements.csv"
+    )
 
     pipeline_ = Pipeline(
         steps=[
@@ -75,7 +80,7 @@ def train_model(partition: int, use_corrected_data: bool, n_jobs: int) -> None:
     groups = train_summary_df["ar_num"]
     grid_search.fit(X, y, groups=groups)
 
-    dump(grid_search, f"partition{partition}/grid_search.joblib", compress=True)
+    dump(grid_search, Path(partition_str) / "grid_search.joblib", compress=True)
 
 if __name__ == "__main__":
     args = parse_args()
