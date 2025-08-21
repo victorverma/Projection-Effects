@@ -5,7 +5,7 @@ import pickle
 from numpy.polynomial.polynomial import polyval
 from pathlib import Path
 
-POLY_COEFS_DIR = "../../dictionary_fits/"
+POLY_COEFS_DIR = Path("..") / ".." / "dictionary_fits"
 PARAMS = [
     "ABSNJZH", "EPSX", "EPSY", "EPSZ", "MEANALP", "MEANGAM", "MEANGBH",
     "MEANGBT", "MEANGBZ", "MEANJZD", "MEANJZH", "MEANPOT", "MEANSHR", "R_VALUE",
@@ -15,7 +15,7 @@ PARAMS = [
 
 poly_coefs = pd.DataFrame(columns=PARAMS)
 for param in PARAMS:
-    with open(f"{POLY_COEFS_DIR}/saved_dictionary_{param}.pkl", "rb") as f:
+    with open(POLY_COEFS_DIR / f"saved_dictionary_{param}.pkl", "rb") as f:
         # The constant term of 1 seems to be missing, so prepend 1
         poly_coefs[param] = np.insert(pickle.load(f)["Mean Fit"], 0, 1)
 

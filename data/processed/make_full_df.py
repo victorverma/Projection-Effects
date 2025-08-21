@@ -8,8 +8,8 @@ from concurrent.futures import ProcessPoolExecutor
 from datetime import datetime
 from pathlib import Path
 
-ROOT_DIR = "../raw/swan_sf/"
-CSV_PATH_PATTERN = "*/*.csv"
+ROOT_DIR = Path("..") / "raw" / "swan_sf"
+CSV_PATH_PATTERN = Path("*") / "*.csv"
 PARAMS = [
     "ABSNJZH", "EPSX", "EPSY", "EPSZ", "MEANALP", "MEANGAM", "MEANGBH",
     "MEANGBT", "MEANGBZ", "MEANJZD", "MEANJZH", "MEANPOT", "MEANSHR", "R_VALUE",
@@ -94,8 +94,7 @@ def make_full_df(
     """
     Make a data frame containing the data from all the CSVs in a SWAN-SF partition.
     """
-    out_dir = Path(f"partition{partition}")
-    out_path = out_dir / "full_df.parquet"
+    out_path = Path(f"partition{partition}") / "full_df.parquet"
     if os.path.exists(out_path):
         os.remove(out_path)
 
@@ -114,9 +113,9 @@ def make_full_df(
             writer = pq.ParquetWriter(out_path, table.schema)
         writer.write_table(table)
 
-    partition_path = Path(ROOT_DIR) / f"partition{partition}"
-    num_csvs = sum(1 for _ in partition_path.glob(CSV_PATH_PATTERN))
-    files_iter = partition_path.glob(CSV_PATH_PATTERN)
+    partition_path = ROOT_DIR  / f"partition{partition}"
+    num_csvs = sum(1 for _ in partition_path.glob(str(CSV_PATH_PATTERN)))
+    files_iter = partition_path.glob(str(CSV_PATH_PATTERN))
     with ProcessPoolExecutor(max_workers) as ex:
         for row in ex.map(process_csv, files_iter, chunksize=chunksize):
             rows.append(row)
