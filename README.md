@@ -1,7 +1,5 @@
 This project is a fork of [griffin-goodwin/Projection-Effects](https://github.com/griffin-goodwin/Projection-Effects),
 which contains the code for [this paper](https://dx.doi.org/10.3847/1538-4357/adb4f6).
-The owner of that repository, Griffin Goodwin, gave me permission to reuse and
-modify his code in an email on 2025-07-22.
 
 The original code is in the `master` branch, which is protected as it isn't
 meant to be altered. In order to run the code, I needed to modify it; my
