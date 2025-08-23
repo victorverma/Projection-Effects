@@ -1,5 +1,6 @@
 import argparse
 import os
+import numpy as np
 import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
@@ -72,10 +73,11 @@ def process_csv(csv_path: Path) -> pd.DataFrame:
     csv_df = pd.read_csv(
         csv_path, sep="\t", usecols=["Timestamp", "HC_ANGLE"] + PARAMS
     )
-    csv_df[PARAMS] = csv_df[PARAMS].interpolate(
-        method="linear", limit_direction="both"
+    csv_df[PARAMS] = (
+        csv_df[PARAMS]
+        .replace([np.inf, -np.inf], np.nan)
+        .interpolate(method="linear", limit_direction="both")
     )
-
     csv_df.insert(0, "partition", partition)
     csv_df.insert(1, "type", type)
     csv_df.insert(2, "flare_class", flare_class)
