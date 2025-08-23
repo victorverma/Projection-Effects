@@ -41,7 +41,7 @@ def train_model(partition: int, use_corrected_data: bool, n_jobs: int) -> None:
     partition_str = f"partition{partition}"
     prefix = "corrected_" if use_corrected_data else ""
 
-    train_summary_df = (
+    df = (
         pd.read_parquet(
             Path("..") / ".." / "data" / "processed" / partition_str / f"{prefix}summary_df.parquet"
         )
@@ -80,9 +80,9 @@ def train_model(partition: int, use_corrected_data: bool, n_jobs: int) -> None:
         return_train_score=True
     )
 
-    X = train_summary_df[top_predictors]
-    y = train_summary_df["type"]
-    groups = train_summary_df["ar_num"]
+    X = df[top_predictors]
+    y = df["type"]
+    groups = df["ar_num"]
     grid_search.fit(X, y, groups=groups)
 
     dump(
