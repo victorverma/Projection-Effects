@@ -45,6 +45,7 @@ def train_model(partition: int, use_corrected_data: bool, n_jobs: int) -> None:
         pd.read_parquet(
             Path("..") / ".." / "data" / "processed" / partition_str / f"{prefix}summary_df.parquet"
         )
+        .dropna()
         .sort_values(["type", "file"]) # Make the results fully reproducible
     )
 
