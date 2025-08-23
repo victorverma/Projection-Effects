@@ -73,8 +73,8 @@ def process_csv(csv_path: Path) -> pd.DataFrame:
     csv_df = pd.read_csv(
         csv_path, sep="\t", usecols=["Timestamp", "HC_ANGLE"] + PARAMS
     )
-    csv_df[PARAMS] = (
-        csv_df[PARAMS]
+    csv_df[["HC_ANGLE"] + PARAMS] = (
+        csv_df[["HC_ANGLE"] + PARAMS]
         .replace([np.inf, -np.inf], np.nan)
         .interpolate(method="linear", limit_direction="both")
     )
