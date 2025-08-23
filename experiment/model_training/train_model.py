@@ -38,17 +38,22 @@ def calc_tss(y_true: ArrayLike, y_pred: ArrayLike) -> float:
     return tp / (tp + fn) - fp / (fp + tn)
 
 def train_model(partition: int, use_corrected_data: bool, n_jobs: int) -> None:
-    parent_parent_dir = Path("..") / ".."
     partition_str = f"partition{partition}"
     prefix = "corrected_" if use_corrected_data else ""
+
     train_summary_df = (
         pd.read_parquet(
-            parent_parent_dir / "data" / "processed" / partition_str / f"{prefix}summary_df.parquet"
+            Path("..") / ".." / "data" / "processed" / partition_str / f"{prefix}summary_df.parquet"
         )
         .sort_values(["type", "file"]) # Make the results fully reproducible
     )
-    improvements = pd.read_csv(
-        parent_parent_dir / f"Partition{partition}Improvements.csv"
+
+    top_predictors = (
+        pd.read_parquet(
+            Path("..") / "feature_selection" / "feature_rankings" / "reproduced" / f"{partition_str}.parquet"
+        )
+        .query("rank <= 25")
+        ["predictor"]
     )
 
     pipeline_ = Pipeline(
@@ -74,13 +79,16 @@ def train_model(partition: int, use_corrected_data: bool, n_jobs: int) -> None:
         return_train_score=True
     )
 
-    specs_col = "CORR_Specs" if use_corrected_data else "Specs"
-    X = train_summary_df.loc[:, improvements.head(25)[specs_col]]
+    X = train_summary_df[top_predictors]
     y = train_summary_df["type"]
     groups = train_summary_df["ar_num"]
     grid_search.fit(X, y, groups=groups)
 
-    dump(grid_search, Path(partition_str) / "grid_search.joblib", compress=True)
+    dump(
+        grid_search,
+        Path(partition_str) / f"{prefix}grid_search.joblib",
+        compress=True
+    )
 
 if __name__ == "__main__":
     args = parse_args()
