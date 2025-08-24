@@ -103,6 +103,10 @@ def test_model(train_partition: int, use_corrected_data: bool) -> pd.DataFrame:
 
     return train_partition_results
 
+def test_model_wrapper(args):
+    train_partition, use_corrected_data = args
+    return test_model(train_partition, use_corrected_data)
+
 if __name__ == "__main__":
     args = parse_args()
     max_workers = args.max_workers
@@ -115,7 +119,7 @@ if __name__ == "__main__":
         for use_corrected_data in use_corrected_datas
     ]
     with ProcessPoolExecutor(max_workers) as ex:
-        all_results = list(ex.map(lambda pair: test_model(*pair), pairs))
+        all_results = list(ex.map(test_model_wrapper, pairs))
 
     all_results = pd.concat(all_results, ignore_index=True)
     all_results.to_parquet("all_results.parquet")
