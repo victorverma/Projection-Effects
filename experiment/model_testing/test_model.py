@@ -1,6 +1,7 @@
 import argparse
 import os
 import pandas as pd
+from concurrent.futures import ProcessPoolExecutor
 from joblib import load
 from numpy.typing import ArrayLike
 from pathlib import Path
@@ -15,19 +16,7 @@ Y_LABELS = ["FL", "NF"]
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Test a support vector classifier trained on a given partition on the other partitions."
-    )
-    parser.add_argument(
-        "--train_partition",
-        type=int,
-        choices=[1, 2, 3, 4, 5],
-        required=True,
-        help="Number of the partition the classifer was trained on (1-5)."
-    )
-    parser.add_argument(
-        "--use_corrected_data",
-        action="store_true",
-        help="Whether to use corrected data (default: False)."
+        description="Test the support vector classifiers trained on the partitions."
     )
     parser.add_argument(
         "--max_workers",
@@ -74,31 +63,25 @@ def calc_metrics(
     )
     return metrics
 
-if __name__ == "__main__":
-    args = parse_args()
-    train_partition = args.train_partition
-    use_corrected_data = args.use_corrected_data
-    max_workers = args.max_workers
-
+def test_model(train_partition: int, use_corrected_data: bool) -> pd.DataFrame:
     data_type = "corrected" if use_corrected_data else "uncorrected"
     prefix = "corrected_" if use_corrected_data else ""
-
+    
     train_partition_str = f"partition{train_partition}"
     train_grid_search = load(
-        GRID_SEARCH_DIR / train_partition_str / "grid_search.joblib"
+        GRID_SEARCH_DIR / train_partition_str / f"{prefix}grid_search.joblib"
     )
     train_top_features = (
         pd.read_parquet(TOP_FEATURES_DIR / f"{train_partition_str}.parquet")
         .query("rank <= 25")
         ["predictor"]
     )
-    results_dir = Path(train_partition_str)
 
     test_partitions = [
         partition
         for partition in range(1, 6) if partition != train_partition
     ]
-    results = []
+    train_partition_results = []
     for test_partition in test_partitions:
         test_df = (
             pd.read_parquet(
@@ -110,9 +93,29 @@ if __name__ == "__main__":
             train_grid_search, train_top_features, test_df
         )
         metrics.insert(0, "test_partition", test_partition)
-        results.append(metrics)
+        train_partition_results.append(metrics)
 
-    results = pd.concat(results, ignore_index=True)
-    results.insert(0, "data_type", data_type)
-    results.insert(1, "train_partition", train_partition)
-    results.to_parquet(results_dir / f"{prefix}results.parquet")
+    train_partition_results = pd.concat(
+        train_partition_results, ignore_index=True
+    )
+    train_partition_results.insert(0, "data_type", data_type)
+    train_partition_results.insert(1, "train_partition", train_partition)
+
+    return train_partition_results
+
+if __name__ == "__main__":
+    args = parse_args()
+    max_workers = args.max_workers
+
+    train_partitions = range(1, 6)
+    use_corrected_datas = [False, True]
+    pairs = [
+        (train_partition, use_corrected_data)
+        for train_partition in train_partitions
+        for use_corrected_data in use_corrected_datas
+    ]
+    with ProcessPoolExecutor(max_workers) as ex:
+        all_results = list(ex.map(lambda pair: test_model(*pair), pairs))
+
+    all_results = pd.concat(all_results, ignore_index=True)
+    all_results.to_parquet("all_results.parquet")
