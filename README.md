@@ -75,3 +75,10 @@ To test the trained models, run this command from `experiment/model_testing/`:
 ./test_models.sh
 ```
 To run this on an HPC, modify and submit the Slurm job `test_models.sbat`.
+
+### Plotting the Results ###
+
+The code in `experiment/model_testing/all_results_plots.ipynb` generates plots
+for various performance metrics. In each plot, metric values are plotted for
+each pair of a training partition and a testing partition, with one curve being
+for the original data and the other being for the corrected data.
