@@ -5,7 +5,6 @@ from concurrent.futures import ProcessPoolExecutor
 from joblib import load
 from numpy.typing import ArrayLike
 from pathlib import Path
-from plotnine import *
 from sklearn.metrics import confusion_matrix
 from sklearn.model_selection import GridSearchCV
 
