@@ -36,10 +36,10 @@ def summarize_df(partition: int, use_corrected_data: bool) -> None:
     columns of the output data frame
     """
     partition_dir = Path(f"partition{partition}")
-    file_name_prefix = "corrected_" if use_corrected_data else ""
+    file_name_suffix = "_corrected" if use_corrected_data else ""
     id_vars = ["partition", "type", "flare_class", "ar_num", "file"]
     full_df = (
-        pd.read_parquet(partition_dir / f"{file_name_prefix}full_df.parquet")
+        pd.read_parquet(partition_dir / f"full_df{file_name_suffix}.parquet")
         [id_vars + PARAMS]
     )
 
@@ -87,7 +87,7 @@ def summarize_df(partition: int, use_corrected_data: bool) -> None:
     summary_df = summary_df[sorted(summary_df.columns)]
     summary_df = pd.concat([id_cols, summary_df], axis=1).reset_index(drop=True)
     summary_df.to_parquet(
-        partition_dir / f"{file_name_prefix}summary_df.parquet"
+        partition_dir / f"summary_df{file_name_suffix}.parquet"
     )
 
 if __name__ == "__main__":

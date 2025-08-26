@@ -39,11 +39,11 @@ def calc_tss(y_true: ArrayLike, y_pred: ArrayLike) -> float:
 
 def train_model(partition: int, use_corrected_data: bool, n_jobs: int) -> None:
     partition_str = f"partition{partition}"
-    prefix = "corrected_" if use_corrected_data else ""
+    suffix = "_corrected" if use_corrected_data else ""
 
     df = (
         pd.read_parquet(
-            Path("..") / ".." / "data" / "processed" / partition_str / f"{prefix}summary_df.parquet"
+            Path("..") / ".." / "data" / "processed" / partition_str / f"summary_df{suffix}.parquet"
         )
         .dropna()
         .sort_values(["type", "file"]) # Make the results fully reproducible
@@ -87,7 +87,7 @@ def train_model(partition: int, use_corrected_data: bool, n_jobs: int) -> None:
 
     dump(
         grid_search,
-        Path(partition_str) / f"{prefix}grid_search.joblib",
+        Path(partition_str) / f"grid_search{suffix}.joblib",
         compress=True
     )
 

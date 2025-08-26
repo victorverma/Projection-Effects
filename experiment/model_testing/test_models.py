@@ -64,11 +64,11 @@ def calc_metrics(
 
 def test_model(train_partition: int, use_corrected_data: bool) -> pd.DataFrame:
     data_type = "corrected" if use_corrected_data else "uncorrected"
-    prefix = "corrected_" if use_corrected_data else ""
+    suffix = "_corrected" if use_corrected_data else ""
     
     train_partition_str = f"partition{train_partition}"
     train_grid_search = load(
-        GRID_SEARCH_DIR / train_partition_str / f"{prefix}grid_search.joblib"
+        GRID_SEARCH_DIR / train_partition_str / f"grid_search{suffix}.joblib"
     )
     train_top_features = (
         pd.read_parquet(TOP_FEATURES_DIR / f"{train_partition_str}.parquet")
@@ -84,7 +84,7 @@ def test_model(train_partition: int, use_corrected_data: bool) -> pd.DataFrame:
     for test_partition in test_partitions:
         test_df = (
             pd.read_parquet(
-                DF_DIR / f"partition{test_partition}" / f"{prefix}summary_df.parquet"
+                DF_DIR / f"partition{test_partition}" / f"summary_df{suffix}.parquet"
             )
             .dropna()
         )

@@ -39,7 +39,7 @@ Running the command below from `data/processed/` makes four data frames for each
 partition. One contains the data in all the CSVs for the partition and another
 contains all of the summary statistic data. The other two are similar, except
 they incorporate corrections computed using the polynomials given in the paper.
-The data frames are saved in files matching `data/processed/partition[1-5]/(corrected_)?(full|summary)_df.parquet`.
+The data frames are saved in files matching `data/processed/partition[1-5]/(full|summary)_df(_corrected)?.parquet`.
 ```
 ./make_dfs.sh
 ```

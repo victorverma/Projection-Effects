@@ -37,7 +37,7 @@ def correct_full_df(partition: int) -> None:
     full_df = pd.read_parquet(partition_dir / "full_df.parquet")
     for param in PARAMS:
         full_df[param] /= polyval(full_df["HC_ANGLE"], poly_coefs[param])
-    full_df.to_parquet(partition_dir / "corrected_full_df.parquet")
+    full_df.to_parquet(partition_dir / "full_df_corrected.parquet")
 
 if __name__ == "__main__":
     args = parse_args()
