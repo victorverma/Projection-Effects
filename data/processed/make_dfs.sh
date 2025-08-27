@@ -12,3 +12,4 @@ for i in 1 2 3 4 5; do
         python summarize_full_df.py --partition $i --use_corrected_data
     "
 done
+conda run -p ../../env/ --live-stream python all_ars_df_maker.py
