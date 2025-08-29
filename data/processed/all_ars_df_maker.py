@@ -12,6 +12,7 @@ PARAMS = [
     "SAVNCPP", "SHRGT45", "TOTBSQ", "TOTFX", "TOTFY", "TOTFZ", "TOTPOT",
     "TOTUSJH", "TOTUSJZ", "USFLUX"
 ]
+QUALITY_COLS = ["SPEI", "QUALITY", "IS_TMFI"]
 
 def make_ar_df(csv_path: Path) -> pd.DataFrame:
     partition = int(csv_path.parent.name[-1])
@@ -20,7 +21,7 @@ def make_ar_df(csv_path: Path) -> pd.DataFrame:
     ar_df = pd.read_csv(
         csv_path,
         sep="\t",
-        usecols=TIMES + ANGLES + PARAMS,
+        usecols=TIMES + ANGLES + PARAMS + QUALITY_COLS,
         dtype={col: "string" for col in TIMES}
     )
     ar_df.insert(0, "partition", partition)
