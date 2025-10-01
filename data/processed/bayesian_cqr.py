@@ -9,27 +9,9 @@ class SameSlopesBayesianCQR():
     def __init__(
         self,
         *,
-        quantile_levels: ArrayLike = (0.5,),
-        draws: int = 1000,
-        tune: int = 1000,
-        chains: int | None = None,
-        cores: int | None = None,
-        random_seed: pm.util.RandomState = None,
-        target_accept: float = 0.8
+        quantile_levels: ArrayLike = (0.5,)
     ):
-        # The types, default values, and bounds for draws, tune, chains, cores,
-        # and random_seed are from
-        # https://www.pymc.io/projects/docs/en/v5.23.0/api/generated/pymc.sample.html
-        # 
-        # The type, default value, and bounds for target_accept are from 
-        # https://www.pymc.io/projects/docs/en/v5.23.0/api/generated/classmethods/pymc.step_methods.hmc.NUTS.__init__.html
         self.quantile_levels = quantile_levels
-        self.draws = draws
-        self.tune = tune
-        self.chains = chains
-        self.cores = cores
-        self.random_seed = random_seed
-        self.target_accept = target_accept
 
     def _check_quantile_levels(self) -> None:
         try:
@@ -64,19 +46,21 @@ class SameSlopesBayesianCQR():
             if arg <= 0:
                 raise ValueError(f"{arg_name} must be positive.")
 
-    def _check_random_seed(self) -> None:
-        if self.random_seed is None:
+    def _check_random_seed(
+        self, *, random_seed: pm.util.RandomState, chains: int | None
+    ) -> None:
+        if random_seed is None:
             return
-        if isinstance(self.random_seed, (int, np.integer)):
+        if isinstance(random_seed, (int, np.integer)):
             return
-        if isinstance(self.random_seed, Generator):
+        if isinstance(random_seed, Generator):
             return
-        if isinstance(self.random_seed, (list, tuple, np.ndarray)):
+        if isinstance(random_seed, (list, tuple, np.ndarray)):
             if not all(
-                isinstance(x, (int, np.integer)) for x in self.random_seed
+                isinstance(x, (int, np.integer)) for x in random_seed
             ):
                 raise TypeError("random_seed must contain ints.")
-            if self.chains is not None and len(self.random_seed) != self.chains:
+            if chains is not None and len(random_seed) != chains:
                 raise ValueError("random_seed must have one int per chain.")
             return
         raise TypeError(
@@ -84,21 +68,55 @@ class SameSlopesBayesianCQR():
             "a numpy.random.Generator, or None."
         )
 
-    def _check_sample_args(self) -> None:
-        self._check_pos_int_arg(self.draws, "draws")
-        self._check_pos_int_arg(self.tune, "tune")
-        self._check_pos_int_arg(self.chains, "chains", can_be_none=True)
-        self._check_pos_int_arg(self.cores, "cores", can_be_none=True)
+    def _check_sample_args(
+        self,
+        *,
+        draws: int,
+        tune: int,
+        chains: int | None,
+        cores: int | None,
+        random_seed: pm.util.RandomState,
+        target_accept: float
+    ) -> None:
+        self._check_pos_int_arg(draws, "draws")
+        self._check_pos_int_arg(tune, "tune")
+        self._check_pos_int_arg(chains, "chains", can_be_none=True)
+        self._check_pos_int_arg(cores, "cores", can_be_none=True)
 
-        self._check_random_seed()
+        self._check_random_seed(random_seed=random_seed, chains=chains)
 
-        if not (0 < self.target_accept < 1):
+        if not (0 < target_accept < 1):
             raise ValueError("target_accept must be in (0, 1).")
 
-    def fit(self, X: ArrayLike, y: ArrayLike) -> InferenceData:
+    def fit(
+        self,
+        X: ArrayLike,
+        y: ArrayLike,
+        *,
+        draws: int = 1000,
+        tune: int = 1000,
+        chains: int | None = None,
+        cores: int | None = None,
+        random_seed: pm.util.RandomState = None,
+        target_accept: float = 0.8
+    ) -> InferenceData:
+        # The types, default values, and bounds for draws, tune, chains, cores,
+        # and random_seed are from
+        # https://www.pymc.io/projects/docs/en/v5.23.0/api/generated/pymc.sample.html
+        #
+        # The type, default value, and bounds for target_accept are from
+        # https://www.pymc.io/projects/docs/en/v5.23.0/api/generated/classmethods/pymc.step_methods.hmc.NUTS.__init__.html
+
         self._check_quantile_levels()
         X, y = check_X_y(X, y, y_numeric=True)
-        self._check_sample_args()
+        self._check_sample_args(
+            draws=draws,
+            tune=tune,
+            chains=chains,
+            cores=cores,
+            random_seed=random_seed,
+            target_accept=target_accept
+        )
 
         quantile_levels_repeated = self.quantile_levels_[:, None]
         kappa = np.sqrt(
@@ -122,10 +140,12 @@ class SameSlopesBayesianCQR():
             )
 
             idata = pm.sample(
-                draws=self.draws, tune=self.tune,
-                chains=self.chains, cores=self.cores,
-                target_accept=self.target_accept,
-                random_seed=self.random_seed
+                draws=draws,
+                tune=tune,
+                chains=chains,
+                cores=cores,
+                random_seed=random_seed,
+                target_accept=target_accept
             )
 
         return idata

@@ -187,15 +187,7 @@ def correct_vals(
     # Fit the model
     ###############
 
-    reg = SameSlopesBayesianCQR(
-        quantile_levels=quantile_levels,
-        draws=draws,
-        tune=tune,
-        chains=chains,
-        cores=cores,
-        random_seed=random_seed,
-        target_accept=target_accept
-    )
+    reg = SameSlopesBayesianCQR(quantile_levels=quantile_levels)
 
     recs_to_correct_subset = recs_to_correct.sample(
         n_train, random_state=random_seed # Don't reuse random_seed here
@@ -206,7 +198,16 @@ def correct_vals(
     )
     y = recs_to_correct_subset[param] # standardize somehow to deal with huge values
 
-    idata = reg.fit(X, y)
+    idata = reg.fit(
+        X,
+        y,
+        draws=draws,
+        tune=tune,
+        chains=chains,
+        cores=cores,
+        random_seed=random_seed,
+        target_accept=target_accept
+    )
 
     #####################################
     # Calculate quantiles under the model
